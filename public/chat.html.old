@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - OpenMessage</title>
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/Bootstrap-Chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.0/purify.min.js"></script>
+    <style>
+        /* Estilos anteriores mantidos */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #36393f;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            width: 240px;
+            background-color: #2f3136;
+            padding: 10px;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+        }
+        .sidebar.collapsed {
+            width: 60px;
+        }
+        .sidebar.collapsed h4,
+        .sidebar.collapsed .form-container,
+        .sidebar.collapsed .server {
+            display: none;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #36393f;
+        }
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        .message {
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.3s ease forwards;
+        }
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .message .username {
+            font-weight: bold;
+            color: #7289da;
+        }
+        .message .timestamp {
+            color: #72767d;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .message-input {
+            padding: 10px;
+            background-color: #40444b;
+            border-top: 1px solid #2f3136;
+        }
+        .message-input textarea {
+            width: 100%;
+            background-color: #40444b;
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            resize: none;
+            transition: background-color 0.3s ease;
+        }
+        .message-input textarea:focus {
+            background-color: #484c54;
+            outline: none;
+        }
+        .server, .channel {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .server:hover, .channel:hover {
+            background-color: #40444b;
+            transform: translateX(5px);
+        }
+        .channel {
+            display: flex;
+            align-items: center;
+        }
+        .channel::before {
+            content: "#";
+            margin-right: 5px;
+            color: #7289da;
+        }
+        .form-container {
+            margin-bottom: 20px;
+            display: none; /* Escondido por padrão */
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .form-container input {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: #40444b;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .form-container input:focus {
+            background-color: #484c54;
+            outline: none;
+        }
+        .form-container button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: #7289da;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .form-container button:hover {
+            background-color: #677bc4;
+        }
+        .toggle-sidebar {
+            display: none;
+            background-color: #7289da;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .back-button {
+            display: none; /* Escondido por padrão */
+            background-color: #7289da;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+        .back-button:hover {
+            background-color: #677bc4;
+        }
+        .create-button {
+            background-color: #7289da;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+        .create-button:hover {
+            background-color: #677bc4;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            .sidebar h4,
+            .sidebar .form-container,
+            .sidebar .server {
+                display: none;
+            }
+            .toggle-sidebar {
+                display: block;
+            }
+        }
+
+        /* Novos estilos para o carregamento */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            display: none; /* Escondido por padrão */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        .loading-text {
+            font-size: 24px;
+            color: white;
+            animation: loadingDots 1.5s infinite;
+        }
+        @keyframes loadingDots {
+            0%, 20% {
+                content: "Carregando mensagens";
+            }
+            40% {
+                content: "Carregando mensagens.";
+            }
+            60% {
+                content: "Carregando mensagens..";
+            }
+            80%, 100% {
+                content: "Carregando mensagens...";
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra lateral esquerda (Servidores e Canais) -->
+    <div class="sidebar" id="sidebar">
+        <button class="toggle-sidebar" id="toggle-sidebar">☰</button>
+        <button class="back-button" id="back-button">← Voltar</button>
+        <h4>Servidores</h4>
+        <div class="form-container" id="create-server-form">
+            <input type="text" id="server-name" placeholder="Nome do servidor">
+            <input type="text" id="server-description" placeholder="Descrição do servidor">
+            <button id="create-server">Criar Servidor</button>
+        </div>
+        <div id="servers-list">
+            <!-- Servidores serão carregados aqui -->
+        </div>
+        <hr>
+        <h4>Canais</h4>
+        <div class="form-container" id="create-channel-form">
+            <input type="text" id="channel-name" placeholder="Nome do canal">
+            <input type="text" id="channel-description" placeholder="Descrição do canal">
+            <button id="create-channel">Criar Canal</button>
+        </div>
+        <div id="channels-list">
+            <!-- Canais serão carregados aqui -->
+        </div>
+        <button class="create-button" id="show-create-server">Criar Servidor</button>
+        <button class="create-button" id="show-create-channel" style="display: none;">Criar Canal</button>
+    </div>
+
+    <!-- Conteúdo principal (Mensagens e Entrada de Texto) -->
+    <div class="main-content">
+        <div class="messages" id="messages">
+            <!-- Mensagens serão carregadas aqui -->
+        </div>
+        <div class="message-input">
+            <textarea id="message-input" placeholder="Digite sua mensagem..."></textarea>
+        </div>
+    </div>
+
+    <!-- Overlay de carregamento -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-text">Carregando mensagens</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io("https://openmessage.hsyst.xyz");
+
+        // Função para ler cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // Verifica se o usuário está autenticado
+        const user = getCookie("user");
+        const tokenaes = getCookie("tokenaes");
+
+        if (!user || !tokenaes) {
+            window.location.href = "login.html"; // Redireciona para o login se não estiver autenticado
+        }
+
+        let currentServerId = null;
+        let currentChannelId = null;
+
+        // Função para buscar o nome de usuário pelo ID
+        async function getUsername(userId) {
+            const response = await fetch(`/user/${userId}`, {
+                credentials: "include",
+            });
+            const data = await response.json();
+            return data.username;
+        }
+
+        // Função para renderizar Markdown
+        function renderMarkdown(content) {
+            const unsafeHTML = marked.parse(content); // Converte Markdown para HTML
+            return DOMPurify.sanitize(unsafeHTML); // Remove scripts maliciosos
+        }
+
+        // Carrega servidores
+        async function loadServers() {
+            const response = await fetch("/servers", {
+                credentials: "include",
+            });
+            const servers = await response.json();
+            const serversList = document.getElementById("servers-list");
+            serversList.innerHTML = "";
+            servers.forEach(server => {
+                const serverElement = document.createElement("div");
+                serverElement.className = "server";
+                serverElement.textContent = server.name;
+                serverElement.onclick = () => {
+                    currentServerId = server.id;
+                    loadChannels(server.id);
+                    document.getElementById("back-button").style.display = "block";
+                    document.getElementById("show-create-channel").style.display = "block";
+                    document.getElementById("show-create-server").style.display = "none";
+                    document.getElementById("create-server-form").style.display = "none";
+                };
+                serversList.appendChild(serverElement);
+            });
+        }
+
+        // Carrega canais de um servidor
+        async function loadChannels(serverId) {
+            const response = await fetch(`/servers/${serverId}/channels`, {
+                credentials: "include",
+            });
+            const channels = await response.json();
+            const channelsList = document.getElementById("channels-list");
+            channelsList.innerHTML = "";
+            channels.forEach(channel => {
+                const channelElement = document.createElement("div");
+                channelElement.className = "channel";
+                channelElement.textContent = channel.name;
+                channelElement.onclick = () => {
+                    currentChannelId = channel.id;
+                    joinChannel(serverId, channel.id);
+                };
+                channelsList.appendChild(channelElement);
+            });
+        }
+
+        // Entra em um canal e carrega as mensagens
+        async function joinChannel(serverId, channelId) {
+            // Reseta o overlay de carregamento
+            const loadingOverlay = document.getElementById("loading-overlay");
+            loadingOverlay.style.opacity = "1"; // Garante que o overlay esteja visível
+            loadingOverlay.style.display = "flex"; // Exibe o overlay
+
+            socket.emit("join-channel", { serverId, channelId });
+
+            const response = await fetch(`/channels/${channelId}/messages`, {
+                credentials: "include",
+            });
+            const messages = await response.json();
+            const messagesContainer = document.getElementById("messages");
+            messagesContainer.innerHTML = "";
+            for (const message of messages) {
+                const username = await getUsername(message.userId);
+                const messageElement = document.createElement("div");
+                messageElement.className = "message";
+                messageElement.innerHTML = `
+                    <span class="username">${username}</span>
+                    <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
+                    <div>${renderMarkdown(message.message)}</div>
+                `;
+                messagesContainer.appendChild(messageElement);
+            }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Esconde o overlay de carregamento com animação
+            setTimeout(() => {
+                loadingOverlay.style.opacity = "0";
+                setTimeout(() => {
+                    loadingOverlay.style.display = "none";
+                }, 500); // Tempo para a animação de fadeOut
+            }, 1000); // Tempo simulado de carregamento
+        }
+
+        // Envia mensagem
+        document.getElementById("message-input").addEventListener("keypress", async (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                const message = e.target.value.trim();
+                if (message && currentServerId && currentChannelId) {
+                    const response = await fetch("/send-message", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({ channelId: currentChannelId, serverId: currentServerId, message }),
+                    });
+                    if (response.ok) {
+                        e.target.value = "";
+                    }
+                }
+            }
+        });
+
+        // Recebe nova mensagem
+        socket.on("new-message", async (message) => {
+            if (message.channelId === currentChannelId) {
+                const username = await getUsername(message.userId);
+                const messagesContainer = document.getElementById("messages");
+                const messageElement = document.createElement("div");
+                messageElement.className = "message";
+                messageElement.innerHTML = `
+                    <span class="username">${username}</span>
+                    <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
+                    <div>${renderMarkdown(message.message)}</div>
+                `;
+                messagesContainer.appendChild(messageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        });
+
+        // Cria servidor
+        document.getElementById("create-server").addEventListener("click", async () => {
+            const name = document.getElementById("server-name").value;
+            const description = document.getElementById("server-description").value;
+            if (name && description) {
+                const response = await fetch("/create-server", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({ name, description }),
+                });
+                if (response.ok) {
+                    loadServers();
+                }
+            }
+        });
+
+        // Cria canal
+        document.getElementById("create-channel").addEventListener("click", async () => {
+            const name = document.getElementById("channel-name").value;
+            const description = document.getElementById("channel-description").value;
+            if (name && description && currentServerId) {
+                const response = await fetch("/create-channel", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({ serverId: currentServerId, name, description }),
+                });
+                if (response.ok) {
+                    loadChannels(currentServerId);
+                }
+            }
+        });
+
+        // Alternar colapso da barra lateral
+        document.getElementById("toggle-sidebar").addEventListener("click", () => {
+            document.getElementById("sidebar").classList.toggle("collapsed");
+        });
+
+        // Botão de voltar
+        document.getElementById("back-button").addEventListener("click", () => {
+            currentServerId = null;
+            currentChannelId = null;
+            document.getElementById("back-button").style.display = "none";
+            document.getElementById("show-create-channel").style.display = "none";
+            document.getElementById("show-create-server").style.display = "block";
+            document.getElementById("create-channel-form").style.display = "none";
+            document.getElementById("create-server-form").style.display = "none";
+            loadServers();
+        });
+
+        // Mostrar formulário de criar servidor
+        document.getElementById("show-create-server").addEventListener("click", () => {
+            document.getElementById("create-server-form").style.display = "block";
+            document.getElementById("create-server-form").style.animation = "fadeIn 0.3s ease";
+        });
+
+        // Mostrar formulário de criar canal
+        document.getElementById("show-create-channel").addEventListener("click", () => {
+            document.getElementById("create-channel-form").style.display = "block";
+            document.getElementById("create-channel-form").style.animation = "fadeIn 0.3s ease";
+        });
+
+        // Carrega servidores ao iniciar
+        loadServers();
+    </script>
+</body>
+</html>

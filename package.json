@@ -1,0 +1,19 @@
+{
+  "name": "openmessage",
+  "version": "1.0.0",
+  "description": "Uma API do OpenMessage",
+  "main": "index.js",
+  "scripts": {
+    "main": "node index.js"
+  },
+  "author": "Humberto (op3n/op3ny)",
+  "license": "Unlicense",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "crypto": "^1.0.1",
+    "express": "^4.21.2",
+    "express-fileupload": "^1.5.1",
+    "socket.io": "^4.8.1",
+    "sqlite3": "^5.1.7"
+  }
+}

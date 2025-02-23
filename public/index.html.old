@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en" style="background: #667146;">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>openmessage</title>
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/Bootstrap-Chat.css">
+    <link rel="stylesheet" href="assets/css/Features-Cards-icons.css">
+</head>
+
+<body style="background: #1cbbd0;">
+    <section class="py-4 py-xl-5">
+        <div class="container">
+            <div class="text-center p-4 p-lg-5">
+                <p class="fw-bold text-primary mb-2">Bem Vindo(a) ao</p>
+                <h1 class="fw-bold mb-4">OpenMessage<br>By: Hsyst (op3n/op3ny)</h1><a href="/chat.html"><button class="btn btn-primary fs-5 me-2 py-2 px-4" type="button">Comece a enviar OpenMessages!</button></a><a href="https://hsyst.xyz"><button class="btn btn-primary fs-5 me-2 py-2 px-4" type="button">Voltar a página principal</button></a>
+            </div>
+        </div>
+    </section>
+    <div class="container py-4 py-xl-5">
+        <div class="row mb-5">
+            <div class="col-md-8 col-xl-6 text-center mx-auto">
+                <h2>Sobre o OpenMessage</h2>
+                <p class="w-lg-50">O OpenMessage é um chat seguro e OpenSource, criado pelo op3n/op3ny (Humberto). O OpenMessage tem como objetivo, te permitir tranquilamente ter um chat para sua empresa, ou para uso pessoal, ao qual seja seguro e eficiente para atender as suas demandas. Além disso, ele tem um visual moderno e fácil de usar!</p>
+            </div>
+        </div>
+    </div>
+    <div class="container py-4 py-xl-5">
+        <div class="row mb-5">
+            <div class="col-md-8 col-xl-6 text-center mx-auto">
+                <h2>Como utilizar?</h2>
+                <p class="w-lg-50">Bem simples! Na página inicial, clique em "Comece a enviar OpenMessages!", em seguida, crie um nickname, em seguida, guarde a "key" que foi te passada, e pronto! Você já pode entrar em sua conta com a key, e começar a usar!</p>
+            </div>
+        </div>
+        <footer class="text-center">
+            <div class="container text-muted py-4 py-lg-5">
+                <ul class="list-inline">
+                    <li class="list-inline-item me-4"><a class="link-secondary" href="https://hsyst.xyz">Hsyst's Website</a></li>
+                    <li class="list-inline-item me-4"><a class="link-secondary" href="https://github.com/Hsyst">Hsyst's GitHub</a></li>
+                    <li class="list-inline-item"><a class="link-secondary" href="https://github.com/op3ny">op3ny's Github</a></li>
+                </ul>
+                <p class="mb-0">Copyright © 2025 Hsyst</p>
+            </div>
+        </footer>
+    </div>
+    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+</body>
+
+</html>
