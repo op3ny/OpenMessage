@@ -2,7 +2,7 @@
 Um serviço de mensagens OpenSource!
 
 # Tutorial de Uso
-Clique aqui para acessar o Tutorial de Uso!
+[Clique aqui](https://github.com/Hsyst/OpenMessage/blob/main/tutorial-de-uso.md) para acessar o Tutorial de Uso!
 
 # Documentação Técnica - OpenMessage
 
