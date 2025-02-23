@@ -13,7 +13,7 @@ npm install
 (Instala os pacotes necessários para o funcionamento)
 
 ## 3° Passo
-- Altere as linhas `14` (altere pelo seu dominio, ou 127.0.0.1 se for local), `22` (altere pelo seu dominio, ou 127.0.0.1 se for local), e `279` (porta ao qual será executado) pelos valores ao qual você precise.
+- Altere as linhas (index.js) `14` (altere pelo seu dominio, ou 127.0.0.1 se for local), `22` (altere pelo seu dominio, ou 127.0.0.1 se for local), e `279` (porta ao qual será executado) pelos valores ao qual você precise.
 
 ## 4° Passo
 - Execute o servidor
