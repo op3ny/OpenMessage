@@ -2,7 +2,7 @@
 Um serviço de mensagens OpenSource!
 
 # Tutorial de Uso
-[Clique aqui](https://github.com/Hsyst/OpenMessage/blob/main/tutorial-de-uso.md) para acessar o Tutorial de Uso!
+[Clique aqui](./tutorial-de-uso.md) para acessar o Tutorial de Uso!
 
 # Documentação Técnica - OpenMessage
 
@@ -152,7 +152,7 @@ O Socket está sendo utilizado nesse projeto, como uma forma de enviar e receber
 Agradecemos pela sua escolha, e estamos abertos para melhorias... Achou um bug? Só abrir um PR. Em fim, agradecemos de coração pela sua escolha.
 
 # Licença
-Esse projeto está sob as condições da licença [unlicense](https://github.com/Hsyst/OpenMessage/blob/main/LICENSE).
+Esse projeto está sob as condições da licença [unlicense](./LICENSE).
 
 # Créditos
 Esse projeto foi criado pelo [op3n/op3ny](https://github.com/op3ny).
