@@ -276,7 +276,7 @@ io.on("connection", (socket) => {
 });
 
 // Iniciar servidor
-const PORT = 7314;
+const PORT = 7314; // O servidor roda por padrão na Porta 7314
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
