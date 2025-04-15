@@ -1,118 +1,481 @@
 <!DOCTYPE html>
 <html lang="en">
+
+<script>
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    function deleteCookie(name) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; secure; samesite=strict`;
+    }
+
+    (async function () {
+        const tokenAES = getCookie('tokenAES');
+
+        if (tokenAES) {
+            try {
+                const response = await fetch(`https://hsyst.xyz/login?tokenReg=${encodeURIComponent(tokenAES)}&captcha_token=${encodeURIComponent(getCookie("captcha_token"))}`);
+                const data = await response.json();
+
+                if (data.status === 'Error') {
+                    deleteCookie('tokenAES');
+                    const captcha = getCookie('captcha_token')
+                    const res = await fetch (`https://captcha.hsyst.xyz/verify_captcha_token?token=${encodeURIComponent(captcha)}`);
+                    const dares = await res.json();
+                    if (dares.valid === false) {
+                        deleteCookie('tokenAES')
+                        window.location.href = 'https://hsyst.xyz/warnabusivo.html'
+                    } else {
+                        window.location.href = 'https://hsyst.xyz/login.html';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao validar o tokenAES:', error);
+                deleteCookie('tokenAES');
+                window.location.href = 'https://hsyst.xyz/login.html';
+            }
+        } else {
+            window.location.href = 'https://hsyst.xyz/login.html';
+        }
+    })();
+</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat - OpenMessage</title>
     <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/Bootstrap-Chat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.0/purify.min.js"></script>
     <style>
+        :root {
+            --primary-color: #5865F2;
+            --primary-hover: #4752C4;
+            --background-primary: #36393F;
+            --background-secondary: #2F3136;
+            --background-tertiary: #202225;
+            --background-accent: #40444B;
+            --text-normal: #DCDDDE;
+            --text-muted: #72767D;
+            --scrollbar-thumb: #202225;
+            --scrollbar-track: #2E3338;
+            --success-color: #3BA55C;
+            --danger-color: #ED4245;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             margin: 0;
             padding: 0;
             display: flex;
             height: 100vh;
-            background-color: #36393f;
-            color: white;
-            font-family: Arial, sans-serif;
+            background-color: var(--background-primary);
+            color: var(--text-normal);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
         }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background-color: var(--scrollbar-track);
+        }
+
+        /* Sidebar styling */
         .sidebar {
             width: 240px;
-            background-color: #2f3136;
-            padding: 10px;
-            transition: width 0.3s ease;
-            overflow-y: auto;
+            background-color: var(--background-secondary);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border-right: 1px solid var(--background-tertiary);
+            z-index: 10;
         }
+
         .sidebar.collapsed {
-            width: 60px;
+            width: 72px;
         }
-        .sidebar.collapsed h4,
-        .sidebar.collapsed .form-container,
-        .sidebar.collapsed .server {
+
+        .sidebar.collapsed .sidebar-content {
             display: none;
         }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--background-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--background-secondary);
+            z-index: 1;
+        }
+
+        .sidebar-title {
+            font-weight: 600;
+            font-size: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            scroll-behavior: smooth;
+        }
+
+        .sidebar-section {
+            margin-bottom: 16px;
+        }
+
+        .sidebar-section-title {
+            padding: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Server and channel items */
+        .server, .channel {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .server:hover, .channel:hover {
+            background-color: var(--background-accent);
+        }
+
+        .server.active, .channel.active {
+            background-color: var(--background-accent);
+        }
+
+        .channel::before {
+            content: "#";
+            margin-right: 6px;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        /* Main content area */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background-color: #36393f;
+            background-color: var(--background-primary);
+            position: relative;
         }
+
+        /* Messages area */
+        .messages-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
         .messages {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
             scroll-behavior: smooth;
+            display: flex;
+            flex-direction: column;
         }
-        .message {
-            margin-bottom: 10px;
+
+        .message-group {
+            margin-bottom: 20px;
             opacity: 0;
             transform: translateY(20px);
             animation: fadeInUp 0.3s ease forwards;
         }
+
+        .message-group:last-child {
+            margin-bottom: 0;
+        }
+
         @keyframes fadeInUp {
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        .message .username {
-            font-weight: bold;
-            color: #7289da;
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
         }
-        .message .timestamp {
-            color: #72767d;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-        .message-input {
-            padding: 10px;
-            background-color: #40444b;
-            border-top: 1px solid #2f3136;
-        }
-        .message-input textarea {
-            width: 100%;
-            background-color: #40444b;
-            border: none;
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--background-tertiary);
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: white;
-            padding: 10px;
-            border-radius: 5px;
-            resize: none;
-            transition: background-color 0.3s ease;
+            font-weight: bold;
+            font-size: 16px;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
         }
-        .message-input textarea:focus {
-            background-color: #484c54;
-            outline: none;
+
+        .message-avatar:hover {
+            transform: scale(1.1);
         }
-        .server, .channel {
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            margin-bottom: 5px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .server:hover, .channel:hover {
-            background-color: #40444b;
-            transform: translateX(5px);
-        }
-        .channel {
+
+        .message-user {
             display: flex;
             align-items: center;
         }
-        .channel::before {
-            content: "#";
-            margin-right: 5px;
-            color: #7289da;
+
+        .message-username {
+            font-weight: 600;
+            color: white;
+            margin-right: 8px;
         }
+
+        .message-badge {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-right: 6px;
+            display: none;
+        }
+
+        .message-timestamp {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .message-content {
+            margin-left: 52px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message-content p {
+            margin-bottom: 4px;
+        }
+
+        /* Message input */
+        .message-input-container {
+            padding: 16px;
+            background-color: var(--background-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .message-input-wrapper {
+            position: relative;
+        }
+
+        .message-input {
+            width: 100%;
+            min-height: 44px;
+            max-height: 200px;
+            background-color: var(--background-accent);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 48px 12px 16px;
+            color: var(--text-normal);
+            font-family: inherit;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .message-input:focus {
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+
+        .message-input-actions {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .message-input-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: color 0.2s ease;
+        }
+
+        .message-input-btn:hover {
+            color: var(--text-normal);
+        }
+
+        .message-input-btn.send {
+            color: var(--primary-color);
+        }
+
+        .message-input-btn.send:hover {
+            color: var(--primary-hover);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: var(--background-accent);
+            color: var(--text-normal);
+        }
+
+        .btn-secondary:hover {
+            background-color: #4F545C;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Forms */
         .form-container {
-            margin-bottom: 20px;
-            display: none; /* Escondido por padrão */
+            background-color: var(--background-secondary);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: none;
             animation: fadeIn 0.3s ease;
         }
+
+        .form-title {
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--background-tertiary);
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            color: var(--text-normal);
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -123,390 +486,1449 @@
                 transform: translateY(0);
             }
         }
-        .form-container input {
-            width: 100%;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-            background-color: #40444b;
-            color: white;
-            transition: background-color 0.3s ease;
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.3s ease;
         }
-        .form-container input:focus {
-            background-color: #484c54;
-            outline: none;
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
-        .form-container button {
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-            background-color: #7289da;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
-        .form-container button:hover {
-            background-color: #677bc4;
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
         }
-        .toggle-sidebar {
-            display: none;
-            background-color: #7289da;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        .back-button {
-            display: none; /* Escondido por padrão */
-            background-color: #7289da;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease;
-        }
-        .back-button:hover {
-            background-color: #677bc4;
-        }
-        .create-button {
-            background-color: #7289da;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease;
-        }
-        .create-button:hover {
-            background-color: #677bc4;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 60px;
-            }
-            .sidebar h4,
-            .sidebar .form-container,
-            .sidebar .server {
-                display: none;
-            }
-            .toggle-sidebar {
-                display: block;
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
-        /* Novos estilos para o carregamento */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            display: none; /* Escondido por padrão */
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 1;
-            transition: opacity 0.5s ease;
-        }
         .loading-text {
-            font-size: 24px;
+            font-size: 16px;
             color: white;
+        }
+
+        .loading-dots::after {
+            content: '';
             animation: loadingDots 1.5s infinite;
         }
+
         @keyframes loadingDots {
             0%, 20% {
-                content: "Carregando mensagens";
+                content: '.';
             }
             40% {
-                content: "Carregando mensagens.";
+                content: '..';
             }
-            60% {
-                content: "Carregando mensagens..";
+            60%, 100% {
+                content: '...';
             }
-            80%, 100% {
-                content: "Carregando mensagens...";
+        }
+
+        /* Message loading indicator */
+        .message-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.3s 0.2s ease forwards;
+        }
+
+        /* Jump to bottom button */
+        .jump-to-bottom {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background-color: var(--background-accent);
+            color: var(--text-normal);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 5;
+        }
+
+        .jump-to-bottom.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .jump-to-bottom:hover {
+            background-color: var(--background-tertiary);
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                z-index: 10;
+                height: 100%;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+                transform: translateX(-100%);
+            }
+
+            .sidebar.visible {
+                transform: translateX(0);
+            }
+
+            .sidebar.collapsed {
+                width: 240px;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.collapsed.visible {
+                transform: translateX(0);
+            }
+
+            .toggle-sidebar {
+                position: fixed;
+                bottom: 16px;
+                left: 16px;
+                z-index: 20;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background-color: var(--primary-color);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+                transition: all 0.3s ease;
+            }
+
+            .toggle-sidebar:hover {
+                transform: scale(1.1);
+            }
+
+            .jump-to-bottom {
+                bottom: 70px;
+                right: 16px;
+            }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: var(--background-tertiary);
+            color: var(--text-normal);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .empty-state-text {
+            max-width: 300px;
+            line-height: 1.5;
+        }
+
+        /* Welcome message */
+        .welcome-message {
+            margin-bottom: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: white;
+        }
+
+        .welcome-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Message date separator */
+        .date-separator {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .date-separator::before,
+        .date-separator::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: var(--background-accent);
+            margin: 0 10px;
+        }
+
+        /* Message reactions */
+        .message-reactions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            margin-left: 52px;
+        }
+
+        .reaction {
+            display: flex;
+            align-items: center;
+            background-color: var(--background-accent);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .reaction:hover {
+            background-color: var(--background-tertiary);
+        }
+
+        .reaction-count {
+            margin-left: 4px;
+            font-weight: 600;
+        }
+
+        /* Context menu */
+        .context-menu {
+            position: absolute;
+            background-color: var(--background-secondary);
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            display: none;
+            min-width: 180px;
+            overflow: hidden;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .context-menu-item.danger {
+            color: var(--danger-color);
+        }
+
+        .context-menu-item.danger:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .notification.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification-icon {
+            font-size: 18px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            background-color: var(--background-secondary);
+            border-radius: 4px;
+            position: absolute;
+            bottom: 70px;
+            left: 20px;
+            z-index: 5;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+
+        .typing-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-muted);
+            border-radius: 50%;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-5px);
             }
         }
     </style>
 </head>
 <body>
-    <!-- Barra lateral esquerda (Servidores e Canais) -->
+    <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
-        <button class="toggle-sidebar" id="toggle-sidebar">☰</button>
-        <button class="back-button" id="back-button">← Voltar</button>
-        <h4>Servidores</h4>
-        <div class="form-container" id="create-server-form">
-            <input type="text" id="server-name" placeholder="Nome do servidor">
-            <input type="text" id="server-description" placeholder="Descrição do servidor">
-            <button id="create-server">Criar Servidor</button>
+        <div class="sidebar-header">
+            <div class="tooltip">
+                <button id="toggle-sidebar" class="btn-icon">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span class="tooltip-text">Toggle sidebar</span>
+            </div>
+            <h4 class="sidebar-title">OpenMessage</h4>
         </div>
-        <div id="servers-list">
-            <!-- Servidores serão carregados aqui -->
+        <div class="sidebar-content">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">
+                    <span>Servers</span>
+                    <button id="show-create-server" class="btn-icon btn-sm" style="background: none; color: var(--text-muted);">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="form-container" id="create-server-form">
+                    <div class="form-title">Create Server</div>
+                    <div class="form-group">
+                        <label class="form-label">Server Name</label>
+                        <input type="text" id="server-name" class="form-input" placeholder="My Awesome Server">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <input type="text" id="server-description" class="form-input" placeholder="What's this server about?">
+                    </div>
+                    <div class="form-actions">
+                        <button id="cancel-create-server" class="btn btn-secondary">Cancel</button>
+                        <button id="create-server" class="btn btn-primary">Create</button>
+                    </div>
+                </div>
+                <div id="servers-list">
+                    <!-- Servers will be loaded here -->
+                    <div class="empty-state" style="padding: 8px 0;">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="empty-state-text">
+                            No servers yet. Create one to get started!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section" id="channels-section" style="display: none;">
+                <div class="sidebar-section-title">
+                    <span>Channels</span>
+                    <button id="show-create-channel" class="btn-icon btn-sm" style="background: none; color: var(--text-muted);">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="form-container" id="create-channel-form">
+                    <div class="form-title">Create Channel</div>
+                    <div class="form-group">
+                        <label class="form-label">Channel Name</label>
+                        <input type="text" id="channel-name" class="form-input" placeholder="general">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <input type="text" id="channel-description" class="form-input" placeholder="General discussions">
+                    </div>
+                    <div class="form-actions">
+                        <button id="cancel-create-channel" class="btn btn-secondary">Cancel</button>
+                        <button id="create-channel" class="btn btn-primary">Create</button>
+                    </div>
+                </div>
+                <div id="channels-list">
+                    <!-- Channels will be loaded here -->
+                    <div class="empty-state" style="padding: 8px 0;">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-hashtag"></i>
+                        </div>
+                        <div class="empty-state-text">
+                            No channels yet. Create one to start chatting!
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <hr>
-        <h4>Canais</h4>
-        <div class="form-container" id="create-channel-form">
-            <input type="text" id="channel-name" placeholder="Nome do canal">
-            <input type="text" id="channel-description" placeholder="Descrição do canal">
-            <button id="create-channel">Criar Canal</button>
-        </div>
-        <div id="channels-list">
-            <!-- Canais serão carregados aqui -->
-        </div>
-        <button class="create-button" id="show-create-server">Criar Servidor</button>
-        <button class="create-button" id="show-create-channel" style="display: none;">Criar Canal</button>
     </div>
 
-    <!-- Conteúdo principal (Mensagens e Entrada de Texto) -->
+    <!-- Main content -->
     <div class="main-content">
-        <div class="messages" id="messages">
-            <!-- Mensagens serão carregadas aqui -->
+        <div class="messages-container">
+            <div class="messages" id="messages">
+                <!-- Messages will be loaded here -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-state-icon floating">
+                        <i class="far fa-comment-dots"></i>
+                    </div>
+                    <div class="empty-state-text">
+                        Select a channel to start chatting
+                    </div>
+                </div>
+            </div>
+            <div class="message-loading" id="message-loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Loading more messages...
+            </div>
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading messages<span class="loading-dots"></span></div>
+                </div>
+            </div>
+            <button class="jump-to-bottom" id="jump-to-bottom" title="Jump to bottom">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
-        <div class="message-input">
-            <textarea id="message-input" placeholder="Digite sua mensagem..."></textarea>
+        <div class="message-input-container" id="message-input-container" style="display: none;">
+            <div class="message-input-wrapper">
+                <textarea id="message-input" class="message-input" placeholder="Type your message here..." rows="1"></textarea>
+                <div class="message-input-actions">
+                    </button>
+                    <button class="message-input-btn" title="Send message" id="send-message-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="typing-indicator" id="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <span>Someone is typing...</span>
+            </div>
         </div>
     </div>
 
-    <!-- Overlay de carregamento -->
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-text">Carregando mensagens</div>
+    <!-- Mobile toggle button -->
+    <button class="toggle-sidebar" id="mobile-toggle-sidebar" style="display: none;">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <i class="fas fa-check-circle notification-icon"></i>
+        <span id="notification-message">Message sent successfully!</span>
     </div>
 
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        const socket = io("/");
+        // Enhanced Chat Application
+        class OpenMessage {
+            constructor() {
+                // Cache for usernames
+                this.usernameCache = new Map();
+                // Cache for message chunks
+                this.messageChunkCache = new Map();
+                // Track if we're loading more messages
+                this.isLoadingMessages = false;
+                // Track the oldest message timestamp for pagination
+                this.oldestMessageTimestamp = null;
+                // Track if user is at the bottom
+                this.isAtBottom = true;
+                // Track typing users
+                this.typingUsers = new Set();
+                // Typing timeout
+                this.typingTimeout = null;
 
-        // Função para ler cookies
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
+                // Initialize Socket.io
+                this.socket = io("/");
 
-        // Verifica se o usuário está autenticado
-        const user = getCookie("user");
-        const tokenaes = getCookie("tokenaes");
-
-        if (!user || !tokenaes) {
-            window.location.href = "login.html"; // Redireciona para o login se não estiver autenticado
-        }
-
-        let currentServerId = null;
-        let currentChannelId = null;
-
-        // Função para buscar o nome de usuário pelo ID
-        async function getUsername(userId) {
-            const response = await fetch(`/user/${userId}`, {
-                credentials: "include",
-            });
-            const data = await response.json();
-            return data.username;
-        }
-
-        // Função para renderizar Markdown
-        function renderMarkdown(content) {
-            const unsafeHTML = marked.parse(content); // Converte Markdown para HTML
-            return DOMPurify.sanitize(unsafeHTML); // Remove scripts maliciosos
-        }
-
-        // Carrega servidores
-        async function loadServers() {
-            const response = await fetch("/servers", {
-                credentials: "include",
-            });
-            const servers = await response.json();
-            const serversList = document.getElementById("servers-list");
-            serversList.innerHTML = "";
-            servers.forEach(server => {
-                const serverElement = document.createElement("div");
-                serverElement.className = "server";
-                serverElement.textContent = server.name;
-                serverElement.onclick = () => {
-                    currentServerId = server.id;
-                    loadChannels(server.id);
-                    document.getElementById("back-button").style.display = "block";
-                    document.getElementById("show-create-channel").style.display = "block";
-                    document.getElementById("show-create-server").style.display = "none";
-                    document.getElementById("create-server-form").style.display = "none";
+                // DOM elements
+                this.elements = {
+                    sidebar: document.getElementById('sidebar'),
+                    toggleSidebar: document.getElementById('toggle-sidebar'),
+                    mobileToggleSidebar: document.getElementById('mobile-toggle-sidebar'),
+                    messagesContainer: document.getElementById('messages'),
+                    messageInput: document.getElementById('message-input'),
+                    messageInputContainer: document.getElementById('message-input-container'),
+                    loadingOverlay: document.getElementById('loading-overlay'),
+                    messageLoading: document.getElementById('message-loading'),
+                    emptyState: document.getElementById('empty-state'),
+                    serversList: document.getElementById('servers-list'),
+                    channelsList: document.getElementById('channels-list'),
+                    channelsSection: document.getElementById('channels-section'),
+                    createServerForm: document.getElementById('create-server-form'),
+                    createChannelForm: document.getElementById('create-channel-form'),
+                    showCreateServer: document.getElementById('show-create-server'),
+                    showCreateChannel: document.getElementById('show-create-channel'),
+                    cancelCreateServer: document.getElementById('cancel-create-server'),
+                    cancelCreateChannel: document.getElementById('cancel-create-channel'),
+                    jumpToBottom: document.getElementById('jump-to-bottom'),
+                    sendMessageBtn: document.getElementById('send-message-btn'),
+                    typingIndicator: document.getElementById('typing-indicator'),
+                    notification: document.getElementById('notification'),
+                    contextMenu: document.getElementById('context-menu')
                 };
-                serversList.appendChild(serverElement);
-            });
-        }
 
-        // Carrega canais de um servidor
-        async function loadChannels(serverId) {
-            const response = await fetch(`/servers/${serverId}/channels`, {
-                credentials: "include",
-            });
-            const channels = await response.json();
-            const channelsList = document.getElementById("channels-list");
-            channelsList.innerHTML = "";
-            channels.forEach(channel => {
-                const channelElement = document.createElement("div");
-                channelElement.className = "channel";
-                channelElement.textContent = channel.name;
-                channelElement.onclick = () => {
-                    currentChannelId = channel.id;
-                    joinChannel(serverId, channel.id);
+                // State
+                this.currentState = {
+                    serverId: null,
+                    channelId: null,
+                    isSidebarCollapsed: false,
+                    isMobile: false
                 };
-                channelsList.appendChild(channelElement);
-            });
-        }
 
-        // Entra em um canal e carrega as mensagens
-        async function joinChannel(serverId, channelId) {
-            // Reseta o overlay de carregamento
-            const loadingOverlay = document.getElementById("loading-overlay");
-            loadingOverlay.style.opacity = "1"; // Garante que o overlay esteja visível
-            loadingOverlay.style.display = "flex"; // Exibe o overlay
-
-            socket.emit("join-channel", { serverId, channelId });
-
-            const response = await fetch(`/channels/${channelId}/messages`, {
-                credentials: "include",
-            });
-            const messages = await response.json();
-            const messagesContainer = document.getElementById("messages");
-            messagesContainer.innerHTML = "";
-            for (const message of messages) {
-                const username = await getUsername(message.userId);
-                const messageElement = document.createElement("div");
-                messageElement.className = "message";
-                messageElement.innerHTML = `
-                    <span class="username">${username}</span>
-                    <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
-                    <div>${renderMarkdown(message.message)}</div>
-                `;
-                messagesContainer.appendChild(messageElement);
+                // Initialize the app
+                this.init();
             }
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // Esconde o overlay de carregamento com animação
-            setTimeout(() => {
-                loadingOverlay.style.opacity = "0";
-                setTimeout(() => {
-                    loadingOverlay.style.display = "none";
-                }, 500); // Tempo para a animação de fadeOut
-            }, 1000); // Tempo simulado de carregamento
-        }
+            // Initialize the app
+            init() {
+                this.setupEventListeners();
+                this.checkAuth();
+                this.loadServers();
+                this.setupResponsive();
+                this.setupAutoResizeTextarea();
+                this.setupContextMenu();
+            }
 
-        // Envia mensagem
-        document.getElementById("message-input").addEventListener("keypress", async (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                const message = e.target.value.trim();
-                if (message && currentServerId && currentChannelId) {
+            // Check authentication
+            checkAuth() {
+                const user = this.getCookie("user");
+                const tokenaes = this.getCookie("tokenaes");
+
+                if (!user || !tokenaes) {
+                    window.location.href = "login.html";
+                }
+            }
+
+            // Setup event listeners
+            setupEventListeners() {
+                // Sidebar toggle
+                this.elements.toggleSidebar.addEventListener('click', () => this.toggleSidebar());
+                this.elements.mobileToggleSidebar.addEventListener('click', () => this.toggleSidebar());
+
+                // Message input
+                this.elements.messageInput.addEventListener('keydown', (e) => this.handleMessageInput(e));
+                this.elements.sendMessageBtn.addEventListener('click', () => this.handleSendMessage());
+                this.elements.messageInput.addEventListener('input', () => this.handleTyping());
+
+                // Jump to bottom
+                this.elements.jumpToBottom.addEventListener('click', () => this.scrollToBottom(true));
+                
+                // Scroll events
+                this.elements.messagesContainer.addEventListener('scroll', () => {
+                    this.handleScroll();
+                    this.checkIfAtBottom();
+                });
+
+                // Server and channel creation
+                this.elements.showCreateServer.addEventListener('click', () => this.toggleForm('create-server-form'));
+                this.elements.showCreateChannel.addEventListener('click', () => this.toggleForm('create-channel-form'));
+                this.elements.cancelCreateServer.addEventListener('click', () => this.toggleForm('create-server-form', false));
+                this.elements.cancelCreateChannel.addEventListener('click', () => this.toggleForm('create-channel-form', false));
+                document.getElementById('create-server').addEventListener('click', () => this.createServer());
+                document.getElementById('create-channel').addEventListener('click', () => this.createChannel());
+
+                // Socket events
+                this.socket.on('new-message', (message) => this.handleNewMessage(message));
+                this.socket.on('user-typing', (data) => this.handleUserTyping(data));
+                this.socket.on('typing-stopped', () => this.handleTypingStopped());
+
+                // Window events
+                window.addEventListener('resize', () => this.setupResponsive());
+                window.addEventListener('click', (e) => {
+                    if (!this.elements.contextMenu.contains(e.target)) {
+                        this.elements.contextMenu.style.display = 'none';
+                    }
+                });
+            }
+
+            // Setup auto-resize textarea
+            setupAutoResizeTextarea() {
+                this.elements.messageInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight) + 'px';
+                });
+            }
+
+            // Setup context menu
+            setupContextMenu() {
+                this.elements.messagesContainer.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const messageElement = e.target.closest('.message-group');
+                    if (messageElement) {
+                        this.showContextMenu(e, messageElement);
+                    }
+                });
+            }
+
+            // Show context menu
+            showContextMenu(e, messageElement) {
+                this.elements.contextMenu.style.display = 'block';
+                this.elements.contextMenu.style.left = `${e.pageX}px`;
+                this.elements.contextMenu.style.top = `${e.pageY}px`;
+                
+                // Position adjustment to prevent going off-screen
+                const rect = this.elements.contextMenu.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    this.elements.contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
+                }
+                if (rect.bottom > window.innerHeight) {
+                    this.elements.contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
+                }
+            }
+
+            // Setup responsive behavior
+            setupResponsive() {
+                this.currentState.isMobile = window.innerWidth <= 768;
+                
+                if (this.currentState.isMobile) {
+                    this.elements.sidebar.classList.remove('visible');
+                    this.elements.mobileToggleSidebar.style.display = 'flex';
+                } else {
+                    this.elements.sidebar.classList.add('visible');
+                    this.elements.mobileToggleSidebar.style.display = 'none';
+                }
+            }
+
+            // Toggle sidebar
+            toggleSidebar() {
+                this.currentState.isSidebarCollapsed = !this.currentState.isSidebarCollapsed;
+                this.elements.sidebar.classList.toggle('collapsed');
+                this.elements.sidebar.classList.toggle('visible');
+            }
+
+            // Toggle form visibility
+            toggleForm(formId, show = true) {
+                const form = document.getElementById(formId);
+                if (show) {
+                    form.style.display = 'block';
+                    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    form.style.display = 'none';
+                }
+            }
+
+            // Handle message input
+            handleMessageInput(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSendMessage();
+                }
+            }
+
+            // Handle send message
+            handleSendMessage() {
+                const message = this.elements.messageInput.value.trim();
+                if (message && this.currentState.serverId && this.currentState.channelId) {
+                    this.sendMessage(message);
+                    this.elements.messageInput.value = '';
+                    this.elements.messageInput.style.height = 'auto';
+                    this.showNotification('Message sent!');
+                }
+            }
+
+            // Handle typing indicator
+            handleTyping() {
+                if (!this.currentState.channelId) return;
+                
+                // Clear existing timeout
+                if (this.typingTimeout) {
+                    clearTimeout(this.typingTimeout);
+                }
+                
+                // Notify server that user is typing
+                this.socket.emit('typing', {
+                    channelId: this.currentState.channelId,
+                    serverId: this.currentState.serverId
+                });
+                
+                // Set timeout to stop typing after 2 seconds of inactivity
+                this.typingTimeout = setTimeout(() => {
+                    this.socket.emit('typing-stopped', {
+                        channelId: this.currentState.channelId,
+                        serverId: this.currentState.serverId
+                    });
+                }, 2000);
+            }
+
+            // Handle user typing event from socket
+            handleUserTyping(data) {
+                if (data.channelId === this.currentState.channelId) {
+                    this.typingUsers.add(data.userId);
+                    this.updateTypingIndicator();
+                }
+            }
+
+            // Handle typing stopped event from socket
+            handleTypingStopped() {
+                this.typingUsers.clear();
+                this.updateTypingIndicator();
+            }
+
+            // Update typing indicator
+            updateTypingIndicator() {
+                if (this.typingUsers.size > 0) {
+                    this.elements.typingIndicator.classList.add('visible');
+                    
+                    // Update text based on number of users typing
+                    if (this.typingUsers.size === 1) {
+                        this.elements.typingIndicator.querySelector('span').textContent = '1 person is typing...';
+                    } else {
+                        this.elements.typingIndicator.querySelector('span').textContent = `${this.typingUsers.size} people are typing...`;
+                    }
+                } else {
+                    this.elements.typingIndicator.classList.remove('visible');
+                }
+            }
+
+            // Handle scroll for infinite loading
+            handleScroll() {
+                const container = this.elements.messagesContainer;
+                if (container.scrollTop < 100 && !this.isLoadingMessages && this.oldestMessageTimestamp) {
+                    this.loadMoreMessages();
+                }
+            }
+
+            // Check if user is at the bottom of the chat
+            checkIfAtBottom() {
+                const container = this.elements.messagesContainer;
+                const threshold = 100; // pixels from bottom
+                this.isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+                
+                // Show/hide jump to bottom button
+                if (this.isAtBottom) {
+                    this.elements.jumpToBottom.classList.remove('visible');
+                } else {
+                    this.elements.jumpToBottom.classList.add('visible');
+                }
+            }
+
+            // Get username with caching
+            async getUsername(userId) {
+                if (this.usernameCache.has(userId)) {
+                    return this.usernameCache.get(userId);
+                }
+
+                try {
+                    const response = await fetch(`/user/${userId}`, {
+                        credentials: "include",
+                    });
+                    const data = await response.json();
+                    this.usernameCache.set(userId, data.username);
+                    return data.username;
+                } catch (error) {
+                    console.error('Error fetching username:', error);
+                    return 'Unknown User';
+                }
+            }
+
+            // Render markdown safely
+            renderMarkdown(content) {
+                const unsafeHTML = marked.parse(content);
+                return DOMPurify.sanitize(unsafeHTML);
+            }
+
+            // Get avatar initials
+            getAvatarInitials(username) {
+                return username.split(' ').map(name => name[0]).join('').toUpperCase();
+            }
+
+            // Load servers
+            async loadServers() {
+                try {
+                    const response = await fetch("/servers", {
+                        credentials: "include",
+                    });
+                    const servers = await response.json();
+                    this.renderServers(servers);
+                } catch (error) {
+                    console.error('Error loading servers:', error);
+                }
+            }
+
+            // Render servers
+            renderServers(servers) {
+                this.elements.serversList.innerHTML = '';
+                
+                if (servers.length === 0) {
+                    this.elements.serversList.innerHTML = `
+                        <div class="empty-state" style="padding: 8px 0;">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-server"></i>
+                            </div>
+                            <div class="empty-state-text">
+                                No servers yet. Create one to get started!
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                servers.forEach(server => {
+                    const serverElement = document.createElement('div');
+                    serverElement.className = 'server';
+                    serverElement.textContent = server.name;
+                    serverElement.dataset.id = server.id;
+                    
+                    if (this.currentState.serverId === server.id) {
+                        serverElement.classList.add('active');
+                    }
+
+                    serverElement.addEventListener('click', () => {
+                        this.currentState.serverId = server.id;
+                        this.currentState.channelId = null;
+                        this.loadChannels(server.id);
+                        this.elements.channelsSection.style.display = 'block';
+                        this.elements.emptyState.style.display = 'none';
+                        this.elements.messageInputContainer.style.display = 'none';
+                        
+                        // Update active state
+                        document.querySelectorAll('.server').forEach(el => el.classList.remove('active'));
+                        serverElement.classList.add('active');
+                    });
+
+                    this.elements.serversList.appendChild(serverElement);
+                });
+            }
+
+            // Load channels
+            async loadChannels(serverId) {
+                try {
+                    const response = await fetch(`/servers/${serverId}/channels`, {
+                        credentials: "include",
+                    });
+                    const channels = await response.json();
+                    this.renderChannels(channels);
+                } catch (error) {
+                    console.error('Error loading channels:', error);
+                }
+            }
+
+            // Render channels
+            renderChannels(channels) {
+                this.elements.channelsList.innerHTML = '';
+                
+                if (channels.length === 0) {
+                    this.elements.channelsList.innerHTML = `
+                        <div class="empty-state" style="padding: 8px 0;">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-hashtag"></i>
+                            </div>
+                            <div class="empty-state-text">
+                                No channels yet. Create one to start chatting!
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                channels.forEach(channel => {
+                    const channelElement = document.createElement('div');
+                    channelElement.className = 'channel';
+                    channelElement.textContent = channel.name;
+                    channelElement.dataset.id = channel.id;
+                    
+                    if (this.currentState.channelId === channel.id) {
+                        channelElement.classList.add('active');
+                    }
+
+                    channelElement.addEventListener('click', () => {
+                        this.currentState.channelId = channel.id;
+                        this.joinChannel(this.currentState.serverId, channel.id);
+                        
+                        // Update active state
+                        document.querySelectorAll('.channel').forEach(el => el.classList.remove('active'));
+                        channelElement.classList.add('active');
+                    });
+
+                    this.elements.channelsList.appendChild(channelElement);
+                });
+            }
+
+            // Join channel and load initial messages
+            async joinChannel(serverId, channelId) {
+                // Reset state
+                this.messageChunkCache.delete(channelId);
+                this.oldestMessageTimestamp = null;
+                
+                // Show loading overlay
+                this.showLoadingOverlay();
+                
+                // Clear messages
+                this.elements.messagesContainer.innerHTML = '';
+                this.elements.emptyState.style.display = 'none';
+                this.elements.messageInputContainer.style.display = 'block';
+                
+                // Join channel via socket
+                this.socket.emit("join-channel", { serverId, channelId });
+                
+                // Load initial messages
+                try {
+                    const response = await fetch(`/channels/${channelId}/messages?limit=15`, {
+                        credentials: "include",
+                    });
+                    const messages = await response.json();
+                    
+                    if (messages.length > 0) {
+                        this.oldestMessageTimestamp = messages[0].timestamp;
+                        this.messageChunkCache.set(channelId, messages);
+                        await this.renderMessages(messages);
+                    } else {
+                        this.renderWelcomeMessage(serverId, channelId);
+                    }
+                } catch (error) {
+                    console.error('Error loading messages:', error);
+                    this.renderErrorMessage();
+                } finally {
+                    this.hideLoadingOverlay();
+                    this.scrollToBottom(true);
+                }
+            }
+
+            // Render welcome message for empty channels
+            renderWelcomeMessage(serverId, channelId) {
+                this.elements.messagesContainer.innerHTML = `
+                    <div class="welcome-message">
+                        <h2 class="welcome-title">Welcome to #${channelId}!</h2>
+                        <p class="welcome-subtitle">This is the start of the #${channelId} channel.</p>
+                    </div>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="far fa-comment-dots"></i>
+                        </div>
+                        <div class="empty-state-text">
+                            No messages yet. Be the first to send one!
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Render error message
+            renderErrorMessage() {
+                this.elements.messagesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="empty-state-text">
+                            Failed to load messages. Please try again.
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Load more messages for infinite scroll
+            async loadMoreMessages() {
+                if (this.isLoadingMessages || !this.oldestMessageTimestamp || !this.currentState.channelId) return;
+                
+                this.isLoadingMessages = true;
+                this.elements.messageLoading.style.display = 'block';
+                
+                try {
+                    const response = await fetch(
+                        `/channels/${this.currentState.channelId}/messages?limit=15&before=${encodeURIComponent(this.oldestMessageTimestamp)}`, 
+                        { credentials: "include" }
+                    );
+                    const messages = await response.json();
+                    
+                    if (messages.length > 0) {
+                        this.oldestMessageTimestamp = messages[0].timestamp;
+                        
+                        // Get existing messages for this channel
+                        const existingMessages = this.messageChunkCache.get(this.currentState.channelId) || [];
+                        const newMessages = [...messages, ...existingMessages];
+                        this.messageChunkCache.set(this.currentState.channelId, newMessages);
+                        
+                        // Store scroll position before rendering
+                        const scrollHeightBefore = this.elements.messagesContainer.scrollHeight;
+                        const scrollTopBefore = this.elements.messagesContainer.scrollTop;
+                        
+                        // Render all messages (we need to re-render all to maintain grouping)
+                        await this.renderMessages(newMessages);
+                        
+                        // Restore scroll position
+                        const scrollHeightAfter = this.elements.messagesContainer.scrollHeight;
+                        this.elements.messagesContainer.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+                    } else {
+                        // No more messages to load
+                        this.oldestMessageTimestamp = null;
+                    }
+                } catch (error) {
+                    console.error('Error loading more messages:', error);
+                } finally {
+                    this.isLoadingMessages = false;
+                    this.elements.messageLoading.style.display = 'none';
+                }
+            }
+
+            // Render messages with grouping by user and time
+            async renderMessages(messages) {
+                const container = document.createElement('div');
+                
+                // Group messages by user and time proximity
+                const groupedMessages = [];
+                let currentGroup = null;
+                const GROUP_TIME_THRESHOLD = 5 * 60 * 1000; // 5 minutes in ms
+                
+                for (const message of messages) {
+                    const username = await this.getUsername(message.userId);
+                    
+                    if (!currentGroup || 
+                        currentGroup.userId !== message.userId || 
+                        new Date(message.timestamp) - new Date(currentGroup.timestamp) > GROUP_TIME_THRESHOLD) {
+                        // Start a new group
+                        currentGroup = {
+                            userId: message.userId,
+                            username,
+                            timestamp: message.timestamp,
+                            messages: []
+                        };
+                        groupedMessages.push(currentGroup);
+                    }
+                    
+                    currentGroup.messages.push(message);
+                }
+                
+                // Render each group
+                for (const group of groupedMessages) {
+                    const groupElement = document.createElement('div');
+                    groupElement.className = 'message-group';
+                    
+                    // Header with avatar and username
+                    const headerElement = document.createElement('div');
+                    headerElement.className = 'message-header';
+                    
+                    const avatarElement = document.createElement('div');
+                    avatarElement.className = 'message-avatar';
+                    avatarElement.textContent = this.getAvatarInitials(group.username);
+                    
+                    const userElement = document.createElement('div');
+                    userElement.className = 'message-user';
+                    
+                    const usernameElement = document.createElement('span');
+                    usernameElement.className = 'message-username';
+                    usernameElement.textContent = group.username;
+                    
+                    const timestampElement = document.createElement('span');
+                    timestampElement.className = 'message-timestamp';
+                    timestampElement.textContent = new Date(group.timestamp).toLocaleString();
+                    
+                    userElement.appendChild(usernameElement);
+                    userElement.appendChild(timestampElement);
+                    
+                    headerElement.appendChild(avatarElement);
+                    headerElement.appendChild(userElement);
+                    
+                    // Content for all messages in the group
+                    const contentElement = document.createElement('div');
+                    contentElement.className = 'message-content';
+                    
+                    group.messages.forEach(message => {
+                        const messageElement = document.createElement('div');
+                        messageElement.innerHTML = this.renderMarkdown(message.message);
+                        contentElement.appendChild(messageElement);
+                        
+                        // Add reactions if any
+                        if (message.reactions && message.reactions.length > 0) {
+                            const reactionsElement = document.createElement('div');
+                            reactionsElement.className = 'message-reactions';
+                            
+                            message.reactions.forEach(reaction => {
+                                const reactionElement = document.createElement('div');
+                                reactionElement.className = 'reaction';
+                                reactionElement.innerHTML = `
+                                    ${reaction.emoji} <span class="reaction-count">${reaction.count}</span>
+                                `;
+                                reactionsElement.appendChild(reactionElement);
+                            });
+                            
+                            contentElement.appendChild(reactionsElement);
+                        }
+                    });
+                    
+                    groupElement.appendChild(headerElement);
+                    groupElement.appendChild(contentElement);
+                    container.appendChild(groupElement);
+                }
+                
+                // Replace the messages container content
+                this.elements.messagesContainer.innerHTML = '';
+                this.elements.messagesContainer.appendChild(container);
+            }
+
+            // Handle new message from socket
+            async handleNewMessage(message) {
+                if (message.channelId === this.currentState.channelId) {
+                    // Add to cache if this is the current channel
+                    const existingMessages = this.messageChunkCache.get(this.currentState.channelId) || [];
+                    this.messageChunkCache.set(this.currentState.channelId, [...existingMessages, message]);
+                    
+                    // Render the new message
+                    const username = await this.getUsername(message.userId);
+                    const lastGroup = this.elements.messagesContainer.lastElementChild;
+                    
+                    // Check if we can add to the last group
+                    if (lastGroup && lastGroup.querySelector('.message-username').textContent === username) {
+                        const lastTimestamp = new Date(lastGroup.querySelector('.message-timestamp').textContent);
+                        const newTimestamp = new Date(message.timestamp);
+                        const timeDiff = newTimestamp - lastTimestamp;
+                        
+                        if (timeDiff <= 5 * 60 * 1000) { // 5 minutes threshold
+                            // Add to existing group
+                            const contentElement = lastGroup.querySelector('.message-content');
+                            const messageElement = document.createElement('div');
+                            messageElement.innerHTML = this.renderMarkdown(message.message);
+                            contentElement.appendChild(messageElement);
+                            
+                            // Scroll to bottom if we're near the bottom
+                            if (this.isAtBottom) {
+                                this.scrollToBottom();
+                            }
+                            return;
+                        }
+                    }
+                    
+                    // Create a new group
+                    const groupElement = document.createElement('div');
+                    groupElement.className = 'message-group';
+                    groupElement.style.animation = 'fadeInUp 0.3s ease forwards';
+                    
+                    // Header with avatar and username
+                    const headerElement = document.createElement('div');
+                    headerElement.className = 'message-header';
+                    
+                    const avatarElement = document.createElement('div');
+                    avatarElement.className = 'message-avatar';
+                    avatarElement.textContent = this.getAvatarInitials(username);
+                    
+                    const userElement = document.createElement('div');
+                    userElement.className = 'message-user';
+                    
+                    const usernameElement = document.createElement('span');
+                    usernameElement.className = 'message-username';
+                    usernameElement.textContent = username;
+                    
+                    const timestampElement = document.createElement('span');
+                    timestampElement.className = 'message-timestamp';
+                    timestampElement.textContent = new Date(message.timestamp).toLocaleString();
+                    
+                    userElement.appendChild(usernameElement);
+                    userElement.appendChild(timestampElement);
+                    
+                    headerElement.appendChild(avatarElement);
+                    headerElement.appendChild(userElement);
+                    
+                    // Content
+                    const contentElement = document.createElement('div');
+                    contentElement.className = 'message-content';
+                    
+                    const messageElement = document.createElement('div');
+                    messageElement.innerHTML = this.renderMarkdown(message.message);
+                    contentElement.appendChild(messageElement);
+                    
+                    groupElement.appendChild(headerElement);
+                    groupElement.appendChild(contentElement);
+                    this.elements.messagesContainer.appendChild(groupElement);
+                    
+                    // Scroll to bottom if we're near the bottom
+                    if (this.isAtBottom) {
+                        this.scrollToBottom();
+                    }
+                }
+            }
+
+            // Send message
+            async sendMessage(message) {
+                if (!this.currentState.serverId || !this.currentState.channelId) return;
+                
+                try {
                     const response = await fetch("/send-message", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
                         },
                         credentials: "include",
-                        body: JSON.stringify({ channelId: currentChannelId, serverId: currentServerId, message }),
+                        body: JSON.stringify({ 
+                            channelId: this.currentState.channelId, 
+                            serverId: this.currentState.serverId, 
+                            message 
+                        }),
                     });
-                    if (response.ok) {
-                        e.target.value = "";
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to send message');
                     }
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    this.showNotification('Failed to send message', 'error');
                 }
             }
-        });
 
-        // Recebe nova mensagem
-        socket.on("new-message", async (message) => {
-            if (message.channelId === currentChannelId) {
-                const username = await getUsername(message.userId);
-                const messagesContainer = document.getElementById("messages");
-                const messageElement = document.createElement("div");
-                messageElement.className = "message";
-                messageElement.innerHTML = `
-                    <span class="username">${username}</span>
-                    <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
-                    <div>${renderMarkdown(message.message)}</div>
-                `;
-                messagesContainer.appendChild(messageElement);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        });
-
-        // Cria servidor
-        document.getElementById("create-server").addEventListener("click", async () => {
-            const name = document.getElementById("server-name").value;
-            const description = document.getElementById("server-description").value;
-            if (name && description) {
-                const response = await fetch("/create-server", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    credentials: "include",
-                    body: JSON.stringify({ name, description }),
-                });
-                if (response.ok) {
-                    loadServers();
+            // Create server
+            async createServer() {
+                const name = document.getElementById('server-name').value.trim();
+                const description = document.getElementById('server-description').value.trim();
+                
+                if (!name) {
+                    this.showNotification('Server name is required', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch("/create-server", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({ name, description }),
+                    });
+                    
+                    if (response.ok) {
+                        this.toggleForm('create-server-form', false);
+                        document.getElementById('server-name').value = '';
+                        document.getElementById('server-description').value = '';
+                        this.loadServers();
+                        this.showNotification('Server created successfully!');
+                    } else {
+                        throw new Error('Failed to create server');
+                    }
+                } catch (error) {
+                    console.error('Error creating server:', error);
+                    this.showNotification('Failed to create server', 'error');
                 }
             }
-        });
 
-        // Cria canal
-        document.getElementById("create-channel").addEventListener("click", async () => {
-            const name = document.getElementById("channel-name").value;
-            const description = document.getElementById("channel-description").value;
-            if (name && description && currentServerId) {
-                const response = await fetch("/create-channel", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    credentials: "include",
-                    body: JSON.stringify({ serverId: currentServerId, name, description }),
-                });
-                if (response.ok) {
-                    loadChannels(currentServerId);
+            // Create channel
+            async createChannel() {
+                const name = document.getElementById('channel-name').value.trim();
+                const description = document.getElementById('channel-description').value.trim();
+                
+                if (!name) {
+                    this.showNotification('Channel name is required', 'error');
+                    return;
+                }
+                
+                if (!this.currentState.serverId) {
+                    this.showNotification('No server selected', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch("/create-channel", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({ 
+                            serverId: this.currentState.serverId, 
+                            name, 
+                            description 
+                        }),
+                    });
+                    
+                    if (response.ok) {
+                        this.toggleForm('create-channel-form', false);
+                        document.getElementById('channel-name').value = '';
+                        document.getElementById('channel-description').value = '';
+                        this.loadChannels(this.currentState.serverId);
+                        this.showNotification('Channel created successfully!');
+                    } else {
+                        throw new Error('Failed to create channel');
+                    }
+                } catch (error) {
+                    console.error('Error creating channel:', error);
+                    this.showNotification('Failed to create channel', 'error');
                 }
             }
-        });
 
-        // Alternar colapso da barra lateral
-        document.getElementById("toggle-sidebar").addEventListener("click", () => {
-            document.getElementById("sidebar").classList.toggle("collapsed");
-        });
+            // Show notification
+            showNotification(message, type = 'success') {
+                const notification = this.elements.notification;
+                const icon = notification.querySelector('.notification-icon');
+                
+                // Update notification content
+                document.getElementById('notification-message').textContent = message;
+                
+                // Update style based on type
+                if (type === 'error') {
+                    notification.style.backgroundColor = 'var(--danger-color)';
+                    icon.className = 'fas fa-exclamation-circle notification-icon';
+                } else {
+                    notification.style.backgroundColor = 'var(--primary-color)';
+                    icon.className = 'fas fa-check-circle notification-icon';
+                }
+                
+                // Show notification
+                notification.classList.add('visible');
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    notification.classList.remove('visible');
+                }, 3000);
+            }
 
-        // Botão de voltar
-        document.getElementById("back-button").addEventListener("click", () => {
-            currentServerId = null;
-            currentChannelId = null;
-            document.getElementById("back-button").style.display = "none";
-            document.getElementById("show-create-channel").style.display = "none";
-            document.getElementById("show-create-server").style.display = "block";
-            document.getElementById("create-channel-form").style.display = "none";
-            document.getElementById("create-server-form").style.display = "none";
-            loadServers();
-        });
+            // Helper functions
+            showLoadingOverlay() {
+                this.elements.loadingOverlay.style.display = 'flex';
+                setTimeout(() => {
+                    this.elements.loadingOverlay.style.opacity = '1';
+                }, 10);
+            }
 
-        // Mostrar formulário de criar servidor
-        document.getElementById("show-create-server").addEventListener("click", () => {
-            document.getElementById("create-server-form").style.display = "block";
-            document.getElementById("create-server-form").style.animation = "fadeIn 0.3s ease";
-        });
+            hideLoadingOverlay() {
+                this.elements.loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    this.elements.loadingOverlay.style.display = 'none';
+                }, 300);
+            }
 
-        // Mostrar formulário de criar canal
-        document.getElementById("show-create-channel").addEventListener("click", () => {
-            document.getElementById("create-channel-form").style.display = "block";
-            document.getElementById("create-channel-form").style.animation = "fadeIn 0.3s ease";
-        });
+            scrollToBottom(force = false) {
+                if (force || this.isAtBottom) {
+                    const container = this.elements.messagesContainer;
+                    container.scrollTo({
+                        top: container.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                    this.isAtBottom = true;
+                    this.elements.jumpToBottom.classList.remove('visible');
+                }
+            }
 
-        // Carrega servidores ao iniciar
-        loadServers();
+            getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            }
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new OpenMessage();
+        });
     </script>
 </body>
 </html>
